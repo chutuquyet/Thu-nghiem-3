@@ -17,6 +17,12 @@ These files must consist of lines in the format
     [<ipv6>]:<port>
     <onion>.onion:<port>
     <i2p>.b32.i2p:<port>
+    These files must consist of lines in the format
+
+    <ip>:<port>
+    [<ipv6>]:<port>
+    <onion>.onion:<port>
+    <i2p>.b32.i2p:<port>
 
 The output will be two data structures with the peers in binary format:
 
@@ -173,6 +179,26 @@ def main():
     with open(os.path.join(indir,'nodes_test.txt'), 'r', encoding="utf8") as f:
         process_nodes(g, f, 'chainparams_seed_test')
     g.write('#endif // BITCOIN_CHAINPARAMSSEEDS_H\n')
-
+def name_to_bip155(addr):
+    '''Convert address string to BIP155 (networkID, addr) tuple.'''
+    if addr.endswith('.onion'):
+        vchAddr = b32decode(addr[0:-6], True)
+        if len(vchAddr) == 35:
+            assert vchAddr[34] == 3
+            return (BIP155Network.TORV3, vchAddr[:32])
+        elif len(vchAddr) == 10:
+            return (BIP155Network.TORV2, vchAddr)
+        else:
+            raise ValueError('Invalid onion %s' % vchAddr)
+    elif addr.endswith('.b32.i2p'):
+        vchAddr = b32decode(addr[0:-8] + '====', True)
+        if len(vchAddr) == 32:
+            return (BIP155Network.I2P, vchAddr)
+        else:
+            raise ValueError(f'Invalid I2P {vchAddr}')
+    elif '.' in addr: # IPv4
+        return (BIP155Network.IPV4, bytes((int(x) for x in addr.split('.'))))
+    elif ':' in addr: # IPv6 or CJDNS
+        
 if __name__ == '__main__':
     main()
